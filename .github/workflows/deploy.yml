@@ -1,0 +1,62 @@
+# ============================================================
+# AuthSentinel — GitHub Actions CI/CD
+# Auto deploy ke AWS EC2 setiap push ke branch main
+#
+# SETUP SECRETS di GitHub:
+# Repo → Settings → Secrets and variables → Actions
+#
+#   EC2_HOST     → Public IP EC2 (misal: 32.198.20.64)
+#   EC2_USER     → ubuntu
+#   EC2_SSH_KEY  → isi seluruh file .pem key pair EC2
+#   EC2_APP_DIR  → /home/ubuntu/DioAlIqbal_TUBES_CC
+# ============================================================
+
+name: Deploy AuthSentinel to AWS EC2
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH to AWS EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          timeout:  120s
+          script: |
+            echo "=== [1/5] Navigate to app directory ==="
+            cd ${{ secrets.EC2_APP_DIR }}
+
+            echo "=== [2/5] Pull latest code ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== [3/5] Stop containers ==="
+            sudo docker compose down
+
+            echo "=== [4/5] Rebuild and start ==="
+            sudo docker compose up --build -d
+
+            echo "=== [5/5] Health check ==="
+            sleep 15
+            curl -f http://localhost/api/health && echo "Deploy SUCCESS" || echo "Deploy FAILED"
+            sudo docker ps
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Status: ${{ job.status }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "By: ${{ github.actor }}"

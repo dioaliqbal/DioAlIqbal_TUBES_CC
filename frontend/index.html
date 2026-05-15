@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AuthSentinel | Cloud Native Auth</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+/* ── Base ──────────────────────────────────── */
+*{box-sizing:border-box}
+body{background:#0d0d0e;color:#e2e8f0;font-family:'Inter',sans-serif;margin:0}
+.mono{font-family:'JetBrains Mono',monospace}
+.geist{font-family:'Geist',sans-serif}
+.mat{font-family:'Material Symbols Outlined';font-size:20px;vertical-align:middle;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+
+/* ── Page system ───────────────────────────── */
+.page{display:none;min-height:100vh}
+.page.active{display:block}
+.section{display:none}
+.section.active{display:block}
+
+/* ── Cards ─────────────────────────────────── */
+.card{background:#111113;border:1px solid #1e1e24;border-radius:12px}
+.card-glass{background:rgba(20,20,22,0.7);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.07);border-radius:12px}
+
+/* ── Buttons ────────────────────────────────── */
+.btn{border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;border:none;transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary{background:#0070f3;color:#fff;padding:12px 20px;width:100%}
+.btn-primary:hover{background:#0060d3}
+.btn-primary:disabled{background:#1a2a3a;color:#4a5568;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#8b90a0;border:1px solid #1e1e24;padding:9px 18px}
+.btn-ghost:hover{border-color:#374151;color:#e2e8f0}
+.btn-danger{background:transparent;color:#f87171;border:1px solid #1e1e24;padding:9px 14px;width:100%}
+.btn-danger:hover{background:rgba(248,113,113,0.08);border-color:#f87171}
+
+/* ── Form inputs ────────────────────────────── */
+.input{background:#111113;border:1px solid #1e1e24;border-radius:8px;padding:11px 14px;color:#e2e8f0;width:100%;font-size:14px;outline:none;transition:border-color 0.15s}
+.input:focus{border-color:#0070f3}
+.input::placeholder{color:#374151}
+.input-wrap{position:relative}
+.input-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7280;font-size:18px}
+.input-icon-right{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#6b7280;cursor:pointer;font-size:18px}
+.input-wrap .input{padding-left:38px}
+
+/* ── Status dots ────────────────────────────── */
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-green{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.6)}
+.dot-red{background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,0.6)}
+.dot-yellow{background:#eab308}
+.dot-gray{background:#374151}
+.dot-pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Badges ─────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em}
+.badge-green{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.2)}
+.badge-red{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.badge-yellow{background:rgba(234,179,8,.12);color:#facc15;border:1px solid rgba(234,179,8,.2)}
+.badge-blue{background:rgba(0,112,243,.12);color:#60a5fa;border:1px solid rgba(0,112,243,.2)}
+.badge-gray{background:rgba(55,65,81,.3);color:#9ca3af;border:1px solid rgba(55,65,81,.4)}
+
+/* ── Nav item ───────────────────────────────── */
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;color:#6b7280;transition:all .15s}
+.nav-item:hover{background:rgba(255,255,255,.04);color:#e2e8f0}
+.nav-item.active{background:rgba(96,165,250,.1);color:#60a5fa}
+.nav-item .mat{font-size:18px}
+
+/* ── Skeleton ───────────────────────────────── */
+.skeleton{background:linear-gradient(90deg,#1a1a1f 25%,#22222a 50%,#1a1a1f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Error banner ───────────────────────────── */
+.error-banner{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:12px}
+
+/* ── Toast ──────────────────────────────────── */
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── Misc ────────────────────────────────────── */
+.grid-bg{background-image:linear-gradient(rgba(139,144,160,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(139,144,160,.04) 1px,transparent 1px);background-size:40px 40px}
+.mesh{background:radial-gradient(at 0% 0%,rgba(0,112,243,.12) 0,transparent 50%),radial-gradient(at 100% 100%,rgba(104,7,186,.12) 0,transparent 50%)}
+.spin{animation:spin 1.5s linear infinite}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.divider{border:none;border-top:1px solid #1e1e24;margin:0}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ PAGE: LANDING ═══ -->
+<div id="page-landing" class="page active grid-bg">
+  <nav style="border-bottom:1px solid #1e1e24;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:rgba(13,13,14,.85);backdrop-filter:blur(16px);z-index:50;">
+    <span class="geist" style="font-weight:700;font-size:18px;color:#60a5fa;">AuthSentinel</span>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-ghost" onclick="nav('page-login')">Sign In</button>
+      <button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="nav('page-register')">Get Started</button>
+    </div>
+  </nav>
+  <main style="max-width:760px;margin:80px auto;padding:0 24px;text-align:center;">
+    <div class="badge badge-blue" style="margin-bottom:20px;">TUBES Cloud Computing — Fullstack Auth System</div>
+    <h1 class="geist" style="font-size:52px;font-weight:700;line-height:1.1;margin-bottom:18px;letter-spacing:-1.5px;">Cloud Native<br/>Authentication System</h1>
+    <p style="color:#6b7280;font-size:17px;margin-bottom:36px;line-height:1.7;">Register, login, dan monitoring infrastruktur secara real-time. Dibangun dengan Node.js, PostgreSQL, Docker, dan AWS EC2.</p>
+    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:64px;">
+      <button class="btn btn-primary" style="width:auto;padding:14px 32px;font-size:16px;" onclick="nav('page-register')">Buat Akun</button>
+      <button class="btn btn-ghost" style="padding:14px 32px;font-size:16px;" onclick="nav('page-login')">Masuk</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+      <div class="card" style="padding:20px;text-align:left;">
+        <span class="mat" style="color:#0070f3;margin-bottom:10px;display:block;">shield</span>
+        <div style="font-weight:600;margin-bottom:4px;">JWT Auth</div>
+        <div style="color:#6b7280;font-size:13px;">Register, login, logout dengan token-based auth dan bcrypt password hashing.</div>
+      </div>
+      <div class="card" style="padding:20px;text-align:left;">
+        <span class="mat" style="color:#22c55e;margin-bottom:10px;display:block;">view_in_ar</span>
+        <div style="font-weight:600;margin-bottom:4px;">Docker</div>
+        <div style="color:#6b7280;font-size:13px;">3 container: nginx frontend, Express backend, PostgreSQL — semua via Docker Compose.</div>
+      </div>
+      <div class="card" style="padding:20px;text-align:left;">
+        <span class="mat" style="color:#f59e0b;margin-bottom:10px;display:block;">cloud</span>
+        <div style="font-weight:600;margin-bottom:4px;">AWS EC2</div>
+        <div style="color:#6b7280;font-size:13px;">Deploy ke AWS EC2 us-east-1. Bisa diakses online dari mana saja.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════ PAGE: LOGIN ═══ -->
+<div id="page-login" class="page mesh">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div style="width:100%;max-width:400px;">
+      <div style="text-align:center;margin-bottom:28px;cursor:pointer;" onclick="nav('page-landing')">
+        <div style="width:48px;height:48px;background:#0070f3;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <span class="mat" style="color:white;font-size:26px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;">shield_person</span>
+        </div>
+        <div class="geist" style="font-size:22px;font-weight:700;">AuthSentinel</div>
+        <div style="color:#6b7280;font-size:13px;margin-top:3px;">Enterprise Infrastructure Guard</div>
+      </div>
+      <div class="card-glass" style="padding:28px;">
+        <h2 class="geist" style="font-size:20px;font-weight:700;margin-bottom:4px;">Welcome back</h2>
+        <p style="color:#6b7280;font-size:13px;margin-bottom:20px;">Sign in to manage your production clusters.</p>
+        <div id="login-error" style="display:none;" class="error-banner" style="margin-bottom:16px;">
+          <span class="mat" style="color:#f87171;font-size:18px;">error</span>
+          <span id="login-error-msg" style="font-size:13px;color:#f87171;"></span>
+        </div>
+        <form id="login-form" onsubmit="loginUser(event)">
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Email</label>
+            <div class="input-wrap">
+              <span class="mat input-icon">person</span>
+              <input id="login-email" class="input" type="email" placeholder="kamu@example.com" autocomplete="email"/>
+            </div>
+          </div>
+          <div style="margin-bottom:22px;">
+            <label style="display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Password</label>
+            <div class="input-wrap">
+              <span class="mat input-icon">lock</span>
+              <input id="login-password" class="input" type="password" placeholder="••••••••" autocomplete="current-password"/>
+              <span class="mat input-icon-right" onclick="togglePw('login-password',this)" title="Toggle password">visibility</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" type="submit" id="login-btn">Sign In</button>
+        </form>
+        <div style="text-align:center;margin-top:18px;color:#6b7280;font-size:13px;">
+          Belum punya akun? <a onclick="nav('page-register')" style="color:#60a5fa;cursor:pointer;font-weight:600;">Daftar sekarang</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PAGE: REGISTER ═══ -->
+<div id="page-register" class="page">
+  <div style="min-height:100vh;display:flex;">
+    <section class="mesh" style="width:50%;display:flex;align-items:center;justify-content:center;padding:40px;">
+      <div style="max-width:440px;">
+        <div class="badge badge-blue" style="margin-bottom:16px;">Enterprise Security</div>
+        <h1 class="geist" style="font-size:42px;font-weight:700;line-height:1.1;margin-bottom:16px;">Secure your stack in seconds.</h1>
+        <p style="color:#6b7280;font-size:16px;margin-bottom:24px;line-height:1.6;">Platform auth cloud-native untuk DevOps teams. Docker + AWS + PostgreSQL + JWT.</p>
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;flex-direction:column;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;">
+            <div style="color:#4ade80;">✓ Docker containers running</div>
+            <div style="color:#4ade80;">✓ PostgreSQL connected</div>
+            <div style="color:#4ade80;">✓ AWS EC2 deployed</div>
+            <div style="color:#60a5fa;">→ JWT token issued</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section style="width:50%;display:flex;align-items:center;justify-content:center;padding:40px;background:#0a0a0b;">
+      <div style="width:100%;max-width:440px;">
+        <h2 class="geist" style="font-size:26px;font-weight:700;margin-bottom:4px;">Create Account</h2>
+        <p style="color:#6b7280;font-size:14px;margin-bottom:24px;">Sudah punya akun? <a onclick="nav('page-login')" style="color:#60a5fa;cursor:pointer;font-weight:600;">Sign in</a></p>
+        <div id="register-error" style="display:none;" class="error-banner" style="margin-bottom:16px;">
+          <span class="mat" style="color:#f87171;font-size:18px;">error</span>
+          <span id="register-error-msg" style="font-size:13px;color:#f87171;"></span>
+        </div>
+        <form id="register-form" onsubmit="registerUser(event)">
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Username</label>
+            <div class="input-wrap">
+              <span class="mat input-icon">person</span>
+              <input id="reg-username" class="input" type="text" placeholder="dev_admin_01" autocomplete="username"/>
+            </div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Email</label>
+            <div class="input-wrap">
+              <span class="mat input-icon">mail</span>
+              <input id="reg-email" class="input" type="email" placeholder="name@company.com" autocomplete="email"/>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Password</label>
+              <div class="input-wrap">
+                <span class="mat input-icon">lock</span>
+                <input id="reg-password" class="input" type="password" placeholder="••••••••" oninput="updateStrength(this.value)" autocomplete="new-password"/>
+                <span class="mat input-icon-right" onclick="togglePw('reg-password',this)" title="Toggle password">visibility</span>
+              </div>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Konfirmasi</label>
+              <div class="input-wrap">
+                <span class="mat input-icon">verified_user</span>
+                <input id="reg-confirm" class="input" type="password" placeholder="••••••••" autocomplete="new-password"/>
+              </div>
+            </div>
+          </div>
+          <!-- Password strength meter -->
+          <div style="margin-bottom:18px;">
+            <div style="display:flex;gap:4px;margin-bottom:6px;">
+              <div id="str-1" style="height:3px;flex:1;border-radius:2px;background:#1e1e24;transition:background .2s;"></div>
+              <div id="str-2" style="height:3px;flex:1;border-radius:2px;background:#1e1e24;transition:background .2s;"></div>
+              <div id="str-3" style="height:3px;flex:1;border-radius:2px;background:#1e1e24;transition:background .2s;"></div>
+              <div id="str-4" style="height:3px;flex:1;border-radius:2px;background:#1e1e24;transition:background .2s;"></div>
+            </div>
+            <div id="str-label" style="font-size:11px;color:#6b7280;">Min. 8 karakter + huruf kapital + angka</div>
+          </div>
+          <button class="btn btn-primary" type="submit" id="register-btn">Buat Akun</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PAGE: DASHBOARD ═══ -->
+<div id="page-dashboard" class="page">
+  <div style="display:flex;min-height:100vh;">
+    <!-- Sidebar -->
+    <aside style="width:240px;background:#0a0a0b;border-right:1px solid #1e1e24;padding:18px 10px;display:flex;flex-direction:column;position:fixed;height:100vh;overflow-y:auto;">
+      <div style="padding:8px 12px;margin-bottom:20px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="nav('page-landing')">
+        <div style="width:28px;height:28px;background:#0070f3;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span class="mat" style="color:white;font-size:15px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;">shield_person</span>
+        </div>
+        <span class="geist" style="font-size:15px;font-weight:700;">AuthSentinel</span>
+      </div>
+      <!-- Auto refresh indicator -->
+      <div style="margin:0 4px 16px;padding:8px 12px;background:#0d1117;border:1px solid #1e1e24;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6b7280;">
+          <span class="dot dot-green dot-pulse"></span>Auto refresh
+        </div>
+        <span id="refresh-countdown" style="font-size:11px;color:#374151;font-family:'JetBrains Mono',monospace;">10s</span>
+      </div>
+      <nav style="flex:1;display:flex;flex-direction:column;gap:3px;">
+        <div class="nav-item active" id="nav-overview"   onclick="showSection('overview')"><span class="mat">dashboard</span>Overview</div>
+        <div class="nav-item" id="nav-aws"       onclick="showSection('aws')"><span class="mat">cloud</span>AWS Infrastructure</div>
+        <div class="nav-item" id="nav-docker"    onclick="showSection('docker')"><span class="mat">view_in_ar</span>Docker Containers</div>
+        <div class="nav-item" id="nav-database"  onclick="showSection('database')"><span class="mat">database</span>Database</div>
+        <div class="nav-item" id="nav-cicd"      onclick="showSection('cicd')"><span class="mat">sync_alt</span>CI/CD</div>
+        <div class="nav-item" id="nav-logs"      onclick="showSection('logs')"><span class="mat">list_alt</span>Auth Logs</div>
+      </nav>
+      <div style="border-top:1px solid #1e1e24;padding-top:14px;margin-top:12px;">
+        <div style="padding:10px 12px;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:600;" id="sb-name">-</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px;" id="sb-email">-</div>
+          <div style="margin-top:6px;" id="sb-badge"></div>
+        </div>
+        <button class="btn btn-danger" onclick="logoutUser()"><span class="mat" style="font-size:16px;">logout</span>Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main style="margin-left:240px;flex:1;padding:28px;background:#0d0d0e;min-height:100vh;">
+
+      <!-- OVERVIEW -->
+      <div id="section-overview" class="section active">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+          <div>
+            <h1 class="geist" style="font-size:24px;font-weight:700;margin-bottom:4px;">Production Overview</h1>
+            <p style="color:#6b7280;font-size:14px;">Real-time infrastructure status for AuthSentinel.</p>
+          </div>
+          <button class="btn btn-ghost" id="refresh-btn" onclick="refreshAll()" style="font-size:13px;gap:6px;">
+            <span class="mat" style="font-size:16px;" id="refresh-icon">refresh</span>Refresh
+          </button>
+        </div>
+
+        <!-- Error banner -->
+        <div id="backend-offline-banner" style="display:none;margin-bottom:20px;" class="error-banner">
+          <span class="mat" style="color:#f87171;font-size:20px;">wifi_off</span>
+          <div>
+            <div style="font-weight:600;color:#f87171;font-size:14px;">Backend Offline</div>
+            <div style="font-size:13px;color:#9ca3af;margin-top:2px;">Tidak dapat terhubung ke server. Pastikan Docker containers berjalan.</div>
+          </div>
+          <button class="btn btn-ghost" onclick="refreshAll()" style="margin-left:auto;font-size:12px;padding:7px 12px;">Retry</button>
+        </div>
+
+        <!-- User card -->
+        <div class="card" style="padding:18px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+          <div style="width:44px;height:44px;background:rgba(0,112,243,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#60a5fa;flex-shrink:0;" id="ov-avatar">-</div>
+          <div style="flex:1;">
+            <div style="font-size:15px;font-weight:600;" id="ov-name">Loading...</div>
+            <div style="color:#6b7280;font-size:13px;" id="ov-email">-</div>
+          </div>
+          <div id="ov-badge"></div>
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Server time</div>
+            <div style="font-size:13px;font-weight:500;color:#94a3b8;font-family:'JetBrains Mono',monospace;" id="ov-time">-</div>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;" id="stat-cards">
+          <div class="card" style="padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Backend API</span>
+              <span class="dot dot-gray dot-pulse" id="dot-backend"></span>
+            </div>
+            <div style="font-size:20px;font-weight:700;margin-bottom:3px;" id="val-backend"><div class="skeleton" style="height:24px;width:80px;"></div></div>
+            <div style="font-size:12px;color:#4b5563;" id="val-uptime">Port 3000</div>
+          </div>
+          <div class="card" style="padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">PostgreSQL</span>
+              <span class="dot dot-gray dot-pulse" id="dot-db"></span>
+            </div>
+            <div style="font-size:20px;font-weight:700;margin-bottom:3px;" id="val-db"><div class="skeleton" style="height:24px;width:80px;"></div></div>
+            <div style="font-size:12px;color:#4b5563;">Port 5432</div>
+          </div>
+          <div class="card" style="padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Auth Token</span>
+              <span class="dot dot-gray dot-pulse" id="dot-auth"></span>
+            </div>
+            <div style="font-size:20px;font-weight:700;margin-bottom:3px;" id="val-auth"><div class="skeleton" style="height:24px;width:80px;"></div></div>
+            <div style="font-size:12px;color:#4b5563;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="val-token">-</div>
+          </div>
+          <div class="card" style="padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Total Users</span>
+              <span class="dot dot-green" id="dot-users"></span>
+            </div>
+            <div style="font-size:20px;font-weight:700;margin-bottom:3px;" id="val-users"><div class="skeleton" style="height:24px;width:40px;"></div></div>
+            <div style="font-size:12px;color:#4b5563;">Terdaftar</div>
+          </div>
+        </div>
+
+        <!-- Chart + Memory -->
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px;">
+          <div class="card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <div style="font-size:14px;font-weight:600;">Auth Activity — 7 Hari</div>
+              <div style="display:flex;gap:12px;font-size:11px;color:#6b7280;">
+                <div style="display:flex;align-items:center;gap:4px;"><div style="width:10px;height:10px;border-radius:2px;background:#22c55e;"></div>Login OK</div>
+                <div style="display:flex;align-items:center;gap:4px;"><div style="width:10px;height:10px;border-radius:2px;background:#ef4444;"></div>Login Fail</div>
+                <div style="display:flex;align-items:center;gap:4px;"><div style="width:10px;height:10px;border-radius:2px;background:#60a5fa;"></div>Register</div>
+              </div>
+            </div>
+            <canvas id="auth-chart" height="100"></canvas>
+          </div>
+          <div class="card" style="padding:20px;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:16px;">Memory Usage</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+                  <span style="color:#6b7280;">Used</span>
+                  <span id="mem-used">-</span>
+                </div>
+                <div style="height:6px;background:#1e1e24;border-radius:3px;overflow:hidden;">
+                  <div id="mem-bar" style="height:100%;border-radius:3px;background:#0070f3;transition:width .5s;width:0%;"></div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+                <div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;">Total</span><span id="mem-total" class="mono">-</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;">Free</span><span id="mem-free" class="mono">-</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;">Usage</span><span id="mem-pct" class="mono">-</span></div>
+              </div>
+              <div style="border-top:1px solid #1e1e24;padding-top:12px;">
+                <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#6b7280;">7-Day Stats</div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span style="color:#6b7280;">Login OK</span><span style="color:#4ade80;" id="s-login-ok">-</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span style="color:#6b7280;">Login Fail</span><span style="color:#f87171;" id="s-login-fail">-</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:#6b7280;">Register</span><span style="color:#60a5fa;" id="s-register">-</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fleet table -->
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:14px 20px;border-bottom:1px solid #1e1e24;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:15px;">Fleet Monitoring</span>
+            <span style="font-size:12px;color:#4b5563;" id="fleet-updated">-</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:#0a0a0b;">
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Component</th>
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Provider</th>
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Status</th>
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Port</th>
+            </tr></thead>
+            <tbody id="fleet-tbody">
+              <tr style="border-top:1px solid #1a1a1f;"><td style="padding:12px 20px;font-weight:500;">Nginx Frontend</td><td style="padding:12px 20px;color:#4b5563;" class="mono">Docker</td><td style="padding:12px 20px;"><div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-green"></span><span style="font-size:11px;font-weight:700;color:#4ade80;">RUNNING</span></div></td><td style="padding:12px 20px;color:#4b5563;" class="mono">80</td></tr>
+              <tr style="border-top:1px solid #1a1a1f;" id="fleet-backend"><td style="padding:12px 20px;font-weight:500;">Express Backend</td><td style="padding:12px 20px;color:#4b5563;" class="mono">Docker</td><td style="padding:12px 20px;" id="fleet-backend-status"><div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-gray dot-pulse"></span><span style="font-size:11px;font-weight:700;color:#6b7280;">CHECKING</span></div></td><td style="padding:12px 20px;color:#4b5563;" class="mono">3000</td></tr>
+              <tr style="border-top:1px solid #1a1a1f;" id="fleet-db"><td style="padding:12px 20px;font-weight:500;">PostgreSQL DB</td><td style="padding:12px 20px;color:#4b5563;" class="mono">Docker</td><td style="padding:12px 20px;" id="fleet-db-status"><div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-gray dot-pulse"></span><span style="font-size:11px;font-weight:700;color:#6b7280;">CHECKING</span></div></td><td style="padding:12px 20px;color:#4b5563;" class="mono">5432</td></tr>
+              <tr style="border-top:1px solid #1a1a1f;"><td style="padding:12px 20px;font-weight:500;">AWS EC2</td><td style="padding:12px 20px;color:#4b5563;" class="mono">AWS us-east-1</td><td style="padding:12px 20px;"><div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-green"></span><span style="font-size:11px;font-weight:700;color:#4ade80;">RUNNING</span></div></td><td style="padding:12px 20px;color:#4b5563;" class="mono">22,80,443</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- AWS -->
+      <div id="section-aws" class="section">
+        <h1 class="geist" style="font-size:24px;font-weight:700;margin-bottom:4px;">AWS Infrastructure</h1>
+        <p style="color:#6b7280;font-size:14px;margin-bottom:24px;">Real-time AWS service connection status.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;">
+          <div class="card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+              <div style="padding:8px;background:rgba(0,112,243,.1);border-radius:8px;"><span class="mat" style="color:#60a5fa;">dns</span></div>
+              <span class="badge badge-green"><span class="dot dot-green" style="width:6px;height:6px;"></span>CONNECTED</span>
+            </div>
+            <div style="font-size:11px;color:#4b5563;margin-bottom:4px;">EC2 INSTANCE</div>
+            <div class="geist" style="font-size:18px;font-weight:700;margin-bottom:12px;">auth-sentinel-01</div>
+            <div style="border-top:1px solid #1e1e24;padding-top:12px;display:flex;flex-direction:column;gap:7px;font-size:13px;">
+              <div style="display:flex;justify-content:space-between;"><span style="color:#4b5563;">Region</span><span class="mono">us-east-1</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#4b5563;">Public IP</span><span class="mono" id="aws-ip">-</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#4b5563;">Type</span><span class="mono">t2.micro</span></div>
+            </div>
+          </div>
+          <div class="card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+              <div style="padding:8px;background:rgba(0,112,243,.1);border-radius:8px;"><span class="mat" style="color:#60a5fa;">shield</span></div>
+              <span class="badge badge-green"><span class="dot dot-green" style="width:6px;height:6px;"></span>ACTIVE</span>
+            </div>
+            <div style="font-size:11px;color:#4b5563;margin-bottom:4px;">SECURITY GROUP</div>
+            <div class="geist" style="font-size:18px;font-weight:700;margin-bottom:12px;">launch-wizard-1</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 9px;font-size:11px;" class="mono">HTTP 80</span>
+              <span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 9px;font-size:11px;" class="mono">HTTPS 443</span>
+              <span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 9px;font-size:11px;" class="mono">SSH 22</span>
+              <span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 9px;font-size:11px;" class="mono">TCP 3000</span>
+            </div>
+          </div>
+          <div class="card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+              <div style="padding:8px;background:rgba(0,112,243,.1);border-radius:8px;"><span class="mat" style="color:#60a5fa;">health_and_safety</span></div>
+              <span class="badge badge-green" id="aws-health-badge"><span class="dot dot-green" style="width:6px;height:6px;"></span>HEALTHY</span>
+            </div>
+            <div style="font-size:11px;color:#4b5563;margin-bottom:4px;">SERVER HEALTH</div>
+            <div class="geist" style="font-size:18px;font-weight:700;margin-bottom:12px;" id="aws-health-text">Checking...</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#4b5563;">API Online</span><span class="dot" id="aws-dot-api" style="width:8px;height:8px;background:#374151;"></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#4b5563;">DB Connected</span><span class="dot" id="aws-dot-db" style="width:8px;height:8px;background:#374151;"></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#4b5563;">Port 80 Open</span><span class="dot dot-green" style="width:8px;height:8px;"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOCKER -->
+      <div id="section-docker" class="section">
+        <h1 class="geist" style="font-size:24px;font-weight:700;margin-bottom:4px;">Docker Containers</h1>
+        <p style="color:#6b7280;font-size:14px;margin-bottom:24px;">Container runtime status untuk AuthSentinel services.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;">
+          <div class="card" style="padding:20px;border-top:2px solid rgba(0,112,243,.4);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div><div style="font-size:11px;color:#4b5563;margin-bottom:3px;">CONTAINER</div><div class="geist" style="font-size:18px;font-weight:700;">Frontend</div></div><span class="mat" style="color:#0070f3;font-size:24px;">web</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-green"></span><span style="font-size:11px;font-weight:700;color:#4ade80;">RUNNING</span></div><span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 8px;font-size:11px;" class="mono">Port: 80</span></div>
+            <div style="margin-top:10px;font-size:12px;color:#4b5563;" class="mono">nginx:alpine</div>
+          </div>
+          <div class="card" style="padding:20px;border-top:2px solid rgba(0,112,243,.4);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div><div style="font-size:11px;color:#4b5563;margin-bottom:3px;">CONTAINER</div><div class="geist" style="font-size:18px;font-weight:700;">Backend</div></div><span class="mat" style="color:#0070f3;font-size:24px;">dns</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;" id="docker-backend-stat"><div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-gray dot-pulse"></span><span style="font-size:11px;font-weight:700;color:#6b7280;">CHECKING</span></div><span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 8px;font-size:11px;" class="mono">Port: 3000</span></div>
+            <div style="margin-top:10px;font-size:12px;color:#4b5563;" class="mono">node:20-alpine</div>
+          </div>
+          <div class="card" style="padding:20px;border-top:2px solid rgba(0,112,243,.4);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div><div style="font-size:11px;color:#4b5563;margin-bottom:3px;">CONTAINER</div><div class="geist" style="font-size:18px;font-weight:700;">PostgreSQL</div></div><span class="mat" style="color:#0070f3;font-size:24px;">database</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;" id="docker-db-stat"><div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-gray dot-pulse"></span><span style="font-size:11px;font-weight:700;color:#6b7280;">CHECKING</span></div><span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 8px;font-size:11px;" class="mono">Port: 5432</span></div>
+            <div style="margin-top:10px;font-size:12px;color:#4b5563;" class="mono">postgres:15-alpine</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATABASE -->
+      <div id="section-database" class="section">
+        <h1 class="geist" style="font-size:24px;font-weight:700;margin-bottom:4px;">Database</h1>
+        <p style="color:#6b7280;font-size:14px;margin-bottom:24px;">PostgreSQL connection dan status.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:680px;">
+          <div class="card" style="padding:20px;">
+            <div style="font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">Connection Status</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;"><span class="dot" id="db-conn-dot" style="width:12px;height:12px;background:#374151;"></span><span class="geist" style="font-size:20px;font-weight:700;" id="db-conn-status">Checking...</span></div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+              <div style="display:flex;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #1e1e24;"><span style="color:#4b5563;">Host</span><span class="mono">authsentinel-db</span></div>
+              <div style="display:flex;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #1e1e24;"><span style="color:#4b5563;">Port</span><span class="mono">5432</span></div>
+              <div style="display:flex;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #1e1e24;"><span style="color:#4b5563;">Database</span><span class="mono">authsentinel</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#4b5563;">Version</span><span class="mono" id="db-version">-</span></div>
+            </div>
+          </div>
+          <div class="card" style="padding:20px;">
+            <div style="font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">Tables</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#0a0a0b;border-radius:8px;"><div style="display:flex;align-items:center;gap:8px;"><span class="mat" style="color:#60a5fa;font-size:18px;">table_chart</span><span style="font-size:14px;font-weight:500;">users</span></div><span class="badge badge-green">Active</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#0a0a0b;border-radius:8px;"><div style="display:flex;align-items:center;gap:8px;"><span class="mat" style="color:#60a5fa;font-size:18px;">table_chart</span><span style="font-size:14px;font-weight:500;">auth_logs</span></div><span class="badge badge-green">Active</span></div>
+            </div>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid #1e1e24;">
+              <div style="font-size:12px;color:#4b5563;margin-bottom:8px;">Total Users</div>
+              <div class="geist" style="font-size:28px;font-weight:700;" id="db-total-users">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CI/CD -->
+      <div id="section-cicd" class="section">
+        <h1 class="geist" style="font-size:24px;font-weight:700;margin-bottom:4px;">CI/CD Pipeline</h1>
+        <p style="color:#6b7280;font-size:14px;margin-bottom:24px;">GitHub integration dan deployment status.</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;">
+          <div class="card" style="padding:16px;"><div style="font-size:11px;color:#4b5563;margin-bottom:8px;">GITHUB REPO</div><div style="display:flex;align-items:center;gap:7px;"><span class="dot dot-green"></span><span style="font-weight:700;color:#4ade80;font-size:14px;">CONNECTED</span></div></div>
+          <div class="card" style="padding:16px;"><div style="font-size:11px;color:#4b5563;margin-bottom:8px;">GITHUB ACTIONS</div><div style="display:flex;align-items:center;gap:7px;"><span class="dot dot-yellow"></span><span style="font-weight:700;color:#facc15;font-size:14px;">NOT SET UP</span></div></div>
+          <div class="card" style="padding:16px;"><div style="font-size:11px;color:#4b5563;margin-bottom:8px;">LAST DEPLOY</div><div style="display:flex;align-items:center;gap:7px;"><span class="mat" style="color:#60a5fa;font-size:18px;">schedule</span><span style="font-weight:700;font-size:14px;">Manual</span></div></div>
+          <div class="card" style="padding:16px;"><div style="font-size:11px;color:#4b5563;margin-bottom:8px;">BRANCH</div><div style="display:flex;align-items:center;gap:7px;"><span class="mat" style="font-size:18px;color:#6b7280;">account_tree</span><span style="font-weight:700;font-size:14px;" class="mono">main</span></div></div>
+        </div>
+        <div class="card" style="padding:20px;margin-bottom:14px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:18px;">Pipeline Flow</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;"><div style="width:48px;height:48px;background:rgba(34,197,94,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(34,197,94,.25);"><span class="mat" style="color:#4ade80;font-size:22px;">source</span></div><span style="font-size:10px;color:#4b5563;font-weight:600;text-transform:uppercase;">GITHUB</span><span class="badge badge-green">Connected</span></div>
+            <span class="mat" style="color:#374151;margin-bottom:20px;">arrow_forward</span>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;"><div style="width:48px;height:48px;background:rgba(234,179,8,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(234,179,8,.25);"><span class="mat" style="color:#facc15;font-size:22px;">bolt</span></div><span style="font-size:10px;color:#4b5563;font-weight:600;text-transform:uppercase;">GH ACTIONS</span><span class="badge badge-yellow">Pending</span></div>
+            <span class="mat" style="color:#374151;margin-bottom:20px;">arrow_forward</span>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;"><div style="width:48px;height:48px;background:rgba(0,112,243,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,112,243,.25);"><span class="mat" style="color:#60a5fa;font-size:22px;">view_in_ar</span></div><span style="font-size:10px;color:#4b5563;font-weight:600;text-transform:uppercase;">DOCKER BUILD</span><span class="badge badge-green">Manual ✓</span></div>
+            <span class="mat" style="color:#374151;margin-bottom:20px;">arrow_forward</span>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;"><div style="width:48px;height:48px;background:rgba(34,197,94,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(34,197,94,.25);"><span class="mat" style="color:#4ade80;font-size:22px;">cloud</span></div><span style="font-size:10px;color:#4b5563;font-weight:600;text-transform:uppercase;">AWS EC2</span><span class="badge badge-green">Live ✓</span></div>
+          </div>
+        </div>
+        <div class="card" style="padding:20px;">
+          <div style="font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">Repository Info</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+            <div style="display:flex;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #1e1e24;"><span style="color:#4b5563;">Repository</span><a href="https://github.com/dioaliqbal/DioAlIqbal_TUBES_CC" target="_blank" style="color:#60a5fa;text-decoration:none;" class="mono">DioAlIqbal_TUBES_CC →</a></div>
+            <div style="display:flex;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #1e1e24;"><span style="color:#4b5563;">Branch</span><span class="mono">main</span></div>
+            <div style="display:flex;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #1e1e24;"><span style="color:#4b5563;">Deploy target</span><span class="mono">AWS EC2 us-east-1</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#4b5563;">Stack</span><span>Node.js + PostgreSQL + Docker + Nginx</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div id="section-logs" class="section">
+        <h1 class="geist" style="font-size:24px;font-weight:700;margin-bottom:4px;">Auth Logs</h1>
+        <p style="color:#6b7280;font-size:14px;margin-bottom:24px;">20 aktivitas autentikasi terbaru.</p>
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:14px 20px;border-bottom:1px solid #1e1e24;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:15px;">Recent Activity</span>
+            <button class="btn btn-ghost" style="font-size:12px;padding:7px 12px;gap:6px;" onclick="loadLogs()"><span class="mat" style="font-size:15px;">refresh</span>Refresh</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:#0a0a0b;">
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Time</th>
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">User</th>
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">Action</th>
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.5px;">IP</th>
+            </tr></thead>
+            <tbody id="logs-tbody"><tr><td colspan="4" style="padding:20px;text-align:center;color:#4b5563;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════
+const API_URL = 'PLACEHOLDER_API_URL';
+let authChart = null;
+let autoRefreshTimer = null;
+let countdownTimer = null;
+let countdown = 10;
+
+// ══════════════════════════════════════════════════════
+// ROUTER
+// ══════════════════════════════════════════════════════
+function nav(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const t = document.getElementById(pageId);
+  if (t) { t.classList.add('active'); window.scrollTo(0,0); }
+  if (pageId === 'page-dashboard') initDashboard();
+}
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'logs') loadLogs();
+}
+
+// ══════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════
+function showToast(msg, type='info') {
+  const ex = document.getElementById('as-toast');
+  if (ex) ex.remove();
+  const c = {success:'#052e16',error:'#2d0a0a',info:'#0c1a2e'};
+  const t = {success:'#4ade80',error:'#f87171',info:'#60a5fa'};
+  const el = document.createElement('div');
+  el.id = 'as-toast';
+  el.className = 'toast';
+  el.style.cssText = `background:${c[type]||c.info};color:${t[type]||t.info};border:1px solid ${t[type]||t.info}30;`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function showFormError(formId, msg) {
+  const el = document.getElementById(formId + '-error');
+  const msgEl = document.getElementById(formId + '-error-msg');
+  if (el && msgEl) { msgEl.textContent = msg; el.style.display = 'flex'; }
+}
+function hideFormError(formId) {
+  const el = document.getElementById(formId + '-error');
+  if (el) el.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════
+// PASSWORD HELPERS
+// ══════════════════════════════════════════════════════
+function togglePw(id, icon) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  const isPass = input.type === 'password';
+  input.type = isPass ? 'text' : 'password';
+  icon.textContent = isPass ? 'visibility_off' : 'visibility';
+}
+
+function updateStrength(pw) {
+  let score = 0;
+  if (pw.length >= 8)       score++;
+  if (/[A-Z]/.test(pw))     score++;
+  if (/[0-9]/.test(pw))     score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const colors = ['#ef4444','#f59e0b','#eab308','#22c55e'];
+  const labels = ['Terlalu lemah','Lemah','Cukup','Kuat'];
+  for (let i = 1; i <= 4; i++) {
+    const bar = document.getElementById('str-' + i);
+    if (bar) bar.style.background = i <= score ? colors[score-1] : '#1e1e24';
+  }
+  const lbl = document.getElementById('str-label');
+  if (lbl) lbl.textContent = pw.length > 0 ? labels[score-1] || 'Min. 8 karakter + kapital + angka' : 'Min. 8 karakter + huruf kapital + angka';
+}
+
+// ══════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════
+function getUser()  { try { return JSON.parse(localStorage.getItem('as_user')); } catch(e) { return null; } }
+function getToken() { return localStorage.getItem('as_token'); }
+
+async function loginUser(event) {
+  event.preventDefault();
+  hideFormError('login');
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  if (!email || !password) { showFormError('login', 'Email dan password harus diisi.'); return; }
+  btn.disabled = true; btn.textContent = 'Masuk...';
+  try {
+    const r = await fetch(API_URL + '/auth/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const d = await r.json();
+    if (!r.ok) { showFormError('login', d.error || 'Login gagal.'); return; }
+    localStorage.setItem('as_token', d.token);
+    localStorage.setItem('as_user', JSON.stringify(d.user));
+    showToast('Login berhasil! Selamat datang, ' + d.user.username + '!', 'success');
+    event.target.reset();
+    setTimeout(() => nav('page-dashboard'), 600);
+  } catch(e) { showFormError('login', 'Tidak dapat terhubung ke server. Pastikan Docker berjalan.'); }
+  finally { btn.disabled = false; btn.textContent = 'Sign In'; }
+}
+
+async function registerUser(event) {
+  event.preventDefault();
+  hideFormError('register');
+  const username = document.getElementById('reg-username').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const confirm  = document.getElementById('reg-confirm').value;
+  const btn      = document.getElementById('register-btn');
+  if (!username||!email||!password||!confirm) { showFormError('register','Semua field harus diisi.'); return; }
+  if (password !== confirm) { showFormError('register','Password tidak cocok.'); return; }
+  if (password.length < 8)  { showFormError('register','Password minimal 8 karakter.'); return; }
+  if (!/[A-Z]/.test(password)) { showFormError('register','Password harus ada huruf kapital.'); return; }
+  if (!/[0-9]/.test(password)) { showFormError('register','Password harus ada angka.'); return; }
+  btn.disabled = true; btn.textContent = 'Mendaftar...';
+  try {
+    const r = await fetch(API_URL + '/auth/register', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password})});
+    const d = await r.json();
+    if (!r.ok) { showFormError('register', d.error || 'Registrasi gagal.'); return; }
+    localStorage.setItem('as_token', d.token);
+    localStorage.setItem('as_user', JSON.stringify(d.user));
+    showToast('Registrasi berhasil! Selamat datang, ' + d.user.username + '!', 'success');
+    event.target.reset();
+    setTimeout(() => nav('page-dashboard'), 600);
+  } catch(e) { showFormError('register', 'Tidak dapat terhubung ke server.'); }
+  finally { btn.disabled = false; btn.textContent = 'Buat Akun'; }
+}
+
+function logoutUser() {
+  clearInterval(autoRefreshTimer);
+  clearInterval(countdownTimer);
+  localStorage.removeItem('as_token');
+  localStorage.removeItem('as_user');
+  showToast('Logout berhasil. Sampai jumpa!', 'info');
+  setTimeout(() => nav('page-landing'), 500);
+}
+
+// ══════════════════════════════════════════════════════
+// STATUS HELPERS
+// ══════════════════════════════════════════════════════
+function setDot(id, status) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'dot ' + (status==='ok'?'dot-green':status==='warn'?'dot-yellow':'dot-red');
+}
+
+function runningHTML() { return '<div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-green"></span><span style="font-size:11px;font-weight:700;color:#4ade80;">RUNNING</span></div>'; }
+function errorHTML()   { return '<div style="display:flex;align-items:center;gap:6px;"><span class="dot dot-red"></span><span style="font-size:11px;font-weight:700;color:#f87171;">ERROR</span></div>'; }
+function actionBadge(action) {
+  const cfg = {
+    'LOGIN_SUCCESS': ['badge-green','Login OK'],
+    'LOGIN_FAILED':  ['badge-red','Login Fail'],
+    'REGISTER':      ['badge-blue','Register'],
+    'LOGOUT':        ['badge-gray','Logout'],
+  };
+  const [cls, label] = cfg[action] || ['badge-gray', action];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// ══════════════════════════════════════════════════════
+// CHART
+// ══════════════════════════════════════════════════════
+function initChart() {
+  const ctx = document.getElementById('auth-chart');
+  if (!ctx) return;
+  if (authChart) { authChart.destroy(); authChart = null; }
+  authChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['','','','','','',''],
+      datasets: [
+        { label:'Login OK',   data:[0,0,0,0,0,0,0], backgroundColor:'rgba(34,197,94,.7)',   borderRadius:4 },
+        { label:'Login Fail', data:[0,0,0,0,0,0,0], backgroundColor:'rgba(239,68,68,.7)',  borderRadius:4 },
+        { label:'Register',   data:[0,0,0,0,0,0,0], backgroundColor:'rgba(96,165,250,.7)', borderRadius:4 },
+      ],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:'#111113', borderColor:'#1e1e24', borderWidth:1, titleColor:'#e2e8f0', bodyColor:'#9ca3af' } },
+      scales:{
+        x:{ grid:{ color:'rgba(30,30,36,.8)' }, ticks:{ color:'#6b7280', font:{ size:11 } } },
+        y:{ grid:{ color:'rgba(30,30,36,.8)' }, ticks:{ color:'#6b7280', font:{ size:11 }, stepSize:1 }, beginAtZero:true },
+      },
+    },
+  });
+}
+
+async function loadChart() {
+  const token = getToken();
+  if (!token || !authChart) return;
+  try {
+    const r = await fetch(API_URL + '/system/chart', {headers:{'Authorization':'Bearer '+token}});
+    if (!r.ok) return;
+    const d = await r.json();
+    authChart.data.labels = d.labels;
+    authChart.data.datasets[0].data = d.datasets.login_success;
+    authChart.data.datasets[1].data = d.datasets.login_failed;
+    authChart.data.datasets[2].data = d.datasets.registers;
+    authChart.update();
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════
+// MAIN REFRESH
+// ══════════════════════════════════════════════════════
+async function refreshAll() {
+  const icon = document.getElementById('refresh-icon');
+  if (icon) icon.classList.add('spin');
+  const token = getToken();
+  const ip = window.location.hostname;
+
+  // Set IPs
+  const awsIpEl = document.getElementById('aws-ip');
+  if (awsIpEl) awsIpEl.textContent = ip;
+
+  // Check /health
+  let backendOk = false;
+  try {
+    const r = await fetch(API_URL + '/health', {signal:AbortSignal.timeout(4000)});
+    const d = await r.json();
+    backendOk = r.ok && d.status === 'OK';
+  } catch(e) {}
+
+  const offBanner = document.getElementById('backend-offline-banner');
+  if (offBanner) offBanner.style.display = backendOk ? 'none' : 'flex';
+
+  // Update status dots & values
+  const setVal = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+  setDot('dot-backend', backendOk ? 'ok' : 'error');
+  setVal('val-backend', backendOk ? 'ONLINE' : 'OFFLINE');
+
+  setDot('dot-db', backendOk ? 'ok' : 'error');
+  setVal('val-db', backendOk ? 'CONNECTED' : 'DISCONNECTED');
+
+  // Fleet & Docker
+  if (backendOk) {
+    setHTML('fleet-backend-status', runningHTML());
+    setHTML('fleet-db-status', runningHTML());
+    setHTML('docker-backend-stat', runningHTML() + '<span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 8px;font-size:11px;font-family:JetBrains Mono,monospace;">Port: 3000</span>');
+    setHTML('docker-db-stat', runningHTML() + '<span style="background:#0a0a0b;border:1px solid #1e1e24;border-radius:5px;padding:3px 8px;font-size:11px;font-family:JetBrains Mono,monospace;">Port: 5432</span>');
+    const awsApiDot = document.getElementById('aws-dot-api');
+    const awsDbDot  = document.getElementById('aws-dot-db');
+    if (awsApiDot) awsApiDot.className = 'dot dot-green';
+    if (awsDbDot)  awsDbDot.className  = 'dot dot-green';
+    setVal('aws-health-text', 'All Systems Go');
+    setHTML('aws-health-badge', '<span class="dot dot-green" style="width:6px;height:6px;"></span>HEALTHY');
+    setHTML('db-conn-dot', '');
+    const dbDotEl = document.getElementById('db-conn-dot');
+    if (dbDotEl) dbDotEl.className = 'dot dot-green';
+    setVal('db-conn-status', 'CONNECTED');
+  } else {
+    setHTML('fleet-backend-status', errorHTML());
+    setHTML('fleet-db-status', errorHTML());
+    setVal('aws-health-text', 'Degraded');
+  }
+
+  // System status (requires token)
+  if (token) {
+    try {
+      const r = await fetch(API_URL + '/system/status', {headers:{'Authorization':'Bearer '+token},signal:AbortSignal.timeout(4000)});
+      if (r.ok) {
+        const d = await r.json();
+        setVal('val-uptime', 'Uptime: ' + d.server.uptime);
+        setVal('mem-total', d.memory.total_mb + ' MB');
+        setVal('mem-used',  d.memory.used_mb  + ' MB (' + d.memory.used_pct + '%)');
+        setVal('mem-free',  d.memory.free_mb  + ' MB');
+        setVal('mem-pct',   d.memory.used_pct + '%');
+        setVal('val-users', d.users.total.toString());
+        setVal('db-total-users', d.users.total.toString());
+        setVal('db-version', d.database.version || 'PostgreSQL 15');
+        setVal('s-login-ok',   d.auth_stats_7d.login_success.toString());
+        setVal('s-login-fail', d.auth_stats_7d.login_failed.toString());
+        setVal('s-register',   d.auth_stats_7d.registers.toString());
+        const bar = document.getElementById('mem-bar');
+        if (bar) bar.style.width = d.memory.used_pct + '%';
+        const ov = document.getElementById('ov-time');
+        if (ov) ov.textContent = new Date(d.timestamp).toLocaleTimeString('id-ID');
+      }
+    } catch(e) {}
+
+    // Check token /me
+    try {
+      const r = await fetch(API_URL + '/auth/me', {headers:{'Authorization':'Bearer '+token},signal:AbortSignal.timeout(4000)});
+      setDot('dot-auth', r.ok ? 'ok' : 'error');
+      setVal('val-auth', r.ok ? 'VALID' : 'EXPIRED');
+      const tok = getToken();
+      if (tok) setVal('val-token', tok.substring(0,22) + '...');
+    } catch(e) {
+      setDot('dot-auth', 'warn');
+      setVal('val-auth', 'ERROR');
+    }
+
+    loadChart();
+  } else {
+    setDot('dot-auth', 'warn');
+    setVal('val-auth', 'NO TOKEN');
+  }
+
+  // Fleet updated time
+  const fu = document.getElementById('fleet-updated');
+  if (fu) fu.textContent = 'Updated ' + new Date().toLocaleTimeString('id-ID');
+
+  if (icon) icon.classList.remove('spin');
+}
+
+// ══════════════════════════════════════════════════════
+// LOGS
+// ══════════════════════════════════════════════════════
+async function loadLogs() {
+  const token = getToken();
+  if (!token) return;
+  const tbody = document.getElementById('logs-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#4b5563;">Loading...</td></tr>';
+  try {
+    const r = await fetch(API_URL + '/system/logs', {headers:{'Authorization':'Bearer '+token}});
+    if (!r.ok) { tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#f87171;">Gagal load logs.</td></tr>'; return; }
+    const d = await r.json();
+    if (!d.logs || d.logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#4b5563;">Belum ada log.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.logs.map(log => `
+      <tr style="border-top:1px solid #1a1a1f;">
+        <td style="padding:11px 20px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#4b5563;">${new Date(log.created_at).toLocaleString('id-ID')}</td>
+        <td style="padding:11px 20px;"><div style="font-size:13px;font-weight:500;">${log.username}</div><div style="font-size:11px;color:#4b5563;">${log.email}</div></td>
+        <td style="padding:11px 20px;">${actionBadge(log.action)}</td>
+        <td style="padding:11px 20px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#4b5563;">${log.ip_address || '-'}</td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#f87171;">Error: tidak dapat load logs.</td></tr>';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// AUTO REFRESH
+// ══════════════════════════════════════════════════════
+function startAutoRefresh() {
+  clearInterval(autoRefreshTimer);
+  clearInterval(countdownTimer);
+  countdown = 10;
+  countdownTimer = setInterval(() => {
+    countdown--;
+    const el = document.getElementById('refresh-countdown');
+    if (el) el.textContent = countdown + 's';
+    if (countdown <= 0) { countdown = 10; refreshAll(); }
+  }, 1000);
+}
+
+// ══════════════════════════════════════════════════════
+// INIT DASHBOARD
+// ══════════════════════════════════════════════════════
+function initDashboard() {
+  const user = getUser();
+  if (!user) { nav('page-login'); return; }
+
+  const name    = user.username || '-';
+  const email   = user.email    || '-';
+  const role    = user.role     || 'user';
+  const initial = name.charAt(0).toUpperCase();
+  const badge   = `<span class="badge ${role==='admin'?'badge-blue':'badge-gray'}">${role}</span>`;
+
+  // Sidebar
+  const sbName = document.getElementById('sb-name'); if (sbName) sbName.textContent = name;
+  const sbEmail = document.getElementById('sb-email'); if (sbEmail) sbEmail.textContent = email;
+  const sbBadge = document.getElementById('sb-badge'); if (sbBadge) sbBadge.innerHTML = badge;
+
+  // Overview user card
+  const ovAvatar = document.getElementById('ov-avatar'); if (ovAvatar) ovAvatar.textContent = initial;
+  const ovName = document.getElementById('ov-name'); if (ovName) ovName.textContent = name;
+  const ovEmail = document.getElementById('ov-email'); if (ovEmail) ovEmail.textContent = email;
+  const ovBadge = document.getElementById('ov-badge'); if (ovBadge) ovBadge.innerHTML = badge;
+
+  initChart();
+  refreshAll();
+  startAutoRefresh();
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  if (getToken() && getUser()) nav('page-dashboard');
+});
+</script>
+</body>
+</html>
