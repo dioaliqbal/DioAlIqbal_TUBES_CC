@@ -80,3 +80,4 @@ Tambahkan secrets di GitHub → Settings → Secrets:
 - `EC2_APP_DIR` — `/home/ubuntu/DioAlIqbal_TUBES_CC`
 
 Setelah itu, setiap push ke `main` otomatis deploy ke EC2.
+# CI/CD Test
